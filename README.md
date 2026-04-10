@@ -65,6 +65,73 @@ sudo systemctl restart comfyui
 
 ---
 
+## 🦙 Ollama Server — Setup Obrigatório para `MLV_OllamaGenerate`
+
+> ⚠️ **Este pack instala apenas o SDK Python (cliente).** O `MLV_OllamaGenerate` conecta em `http://127.0.0.1:11434` — o servidor Ollama precisa estar instalado e rodando separadamente.
+
+### 1. Instalar Ollama Server
+
+```bash
+# Download e instalação do binário (Linux)
+curl -fsSL https://ollama.com/install.sh | sh
+
+# Verificar instalação
+ollama --version
+```
+
+> O script instala o binário em `/usr/local/bin/ollama`, cria o user `ollama:ollama` e registra o `ollama.service` no systemd automaticamente.
+
+### 2. Habilitar e iniciar o service
+
+```bash
+sudo systemctl enable ollama
+sudo systemctl start ollama
+systemctl status ollama  # deve mostrar: active (running)
+```
+
+### 3. Pull dos modelos usados nos workflows
+
+```bash
+# Modelo padrão do node (leve, 1.8GB)
+ollama pull qwen2.5:3b
+
+# Modelo recomendado para DCE pipeline (melhor qualidade, 4.7GB)
+ollama pull qwen2.5:7b
+
+# Modelos vision (para input de imagens)
+ollama pull llava:7b           # Vision genérico
+ollama pull qwen2.5-vl:7b     # Vision Qwen (melhor PT-BR)
+```
+
+> 💡 **Espaço em disco:** cada modelo ocupa de 1.8GB a 8GB em `~/.ollama/models/`. Para listar modelos instalados: `ollama list`.
+
+### 4. Verificar conectividade
+
+```bash
+# Testar API diretamente
+curl -s http://127.0.0.1:11434/api/tags | python3 -c "
+import sys,json
+models = json.load(sys.stdin).get('models',[])
+for m in models: print(f'  {m[\"name\"]} — {m[\"size\"]//1024**3}GB')
+print(f'Total: {len(models)} modelos')
+"
+```
+
+✅ **Esperado:** Lista dos modelos pulled com tamanhos.
+
+### 5. Testar no ComfyUI
+
+Após reiniciar ComfyUI, o node `Ollama Generate (MLV)` deve:
+1. Conectar em `http://127.0.0.1:11434` (default do input `url`)
+2. Usar o modelo configurado no input `model` (default: `qwen2.5:3b`)
+3. Retornar texto no output `result`
+
+❌ **Se `ConnectionRefusedError`:** Ollama server não está rodando. Verificar: `systemctl status ollama`.
+
+❌ **Se `model not found`:** Modelo não foi pulled. Executar: `ollama pull <model_name>`.
+
+---
+
 ## 🧬 Node Reference
 
 ---
