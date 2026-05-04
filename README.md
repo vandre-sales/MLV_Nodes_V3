@@ -14,6 +14,7 @@
 | **MLV LoRA Stack** | `MLV_LoraStack_V3` | `🧬MLV/🎨LoRA` | Aplica N LoRAs em cadeia com bypass global e por slot |
 | **Ollama Generate (MLV)** | `MLV_OllamaGenerate` | `MLV/llm` | Inferência Ollama com vision, thinking mode e multi-turn context |
 | **String Dict Lookup** | `MLV_StringDictLookup` | `MLV/text` | Lookup de string em lista de pares key=value |
+| **JSON File Batcher** | `MLV_JsonFileBatcher` | `MLV/batch` | Lê arquivo JSON do disco e emite lista de STRING para batch processing |
 
 ---
 
@@ -278,7 +279,64 @@ pharmacy_outside=outside a pharmacy rdstyadrg store
 
 ---
 
-## 🔄 Workflow Típico — LoRA Stack
+### 4. `MLV_JsonFileBatcher` — JSON File Batcher
+
+Lê um arquivo `.json` do disco e emite uma **lista de STRING** com `OUTPUT_IS_LIST=True` para batch processing no ComfyUI. Substitui a entrada manual de prompts no `SimplePromptBatcher` — permite executar N imagens a partir de um arquivo JSON sem intervenção do operador.
+
+#### Formatos de arquivo suportados
+
+**Formato A — Lista de strings puras (mais comum):**
+
+```json
+["prompt 1 completo", "prompt 2 completo", "prompt 25 completo"]
+```
+
+**Formato B — Lista de objetos com chave (usar input `key`):**
+
+```json
+[{"prompt": "prompt 1"}, {"prompt": "prompt 2"}]
+```
+
+#### Inputs
+
+| Input | Tipo | Padrão | Descrição |
+|---|---|---|---|
+| `file_path` | STRING | `""` | Caminho para o arquivo `.json`. Absoluto ou relativo à pasta `input/` do ComfyUI |
+| `key` | STRING | `""` | Chave a extrair se JSON for lista de objetos. Vazio = lista de strings puras |
+
+#### Outputs
+
+| Output | Tipo | Descrição |
+|---|---|---|
+| `prompt` | STRING | Lista de prompts — `OUTPUT_IS_LIST=True`, cada item é enviado individualmente ao CLIPTextEncode |
+
+#### Resolução de Path
+
+- Path absoluto: usado diretamente
+- Path relativo: prefixado com `folder_paths.get_input_directory()` (= `ComfyUI/input/`)
+- Exemplo: `prompts/syn_obj_xy_prompt_list.json` → `/home/ubuntu/ComfyUI/input/prompts/syn_obj_xy_prompt_list.json`
+
+#### Comportamento de Fallback
+
+| Situação | Comportamento |
+|---|---|
+| Arquivo não encontrado | Retorna `[""]` + print de aviso |
+| JSON inválido (sintaxe) | Retorna `[""]` + print de aviso |
+| JSON não é lista | Retorna `[""]` + print de aviso |
+| Lista vazia | Retorna `[""]` + print de aviso |
+| Prompts em branco filtrados | Omite silenciosamente, retorna os válidos |
+
+> ✅ **Zero crash guarantee** — nunca lança exceção para o engine. Falhas de IO/parse são tratadas internamente e retornam `[""]` como fallback gracioso.
+
+#### Notas Importantes
+
+> ⚠️ **Encoding:** suporta arquivos UTF-8 com ou sem BOM (Windows). Usa `encoding="utf-8-sig"` internamente.
+
+> 💡 **Pasta recomendada:** `ComfyUI/input/prompts/` — organiza arquivos de batch separados dos uploads de imagem.
+
+---
+
+## � Workflow Típico — LoRA Stack
 
 ```
 [CheckpointLoader ou UNetLoader]
@@ -294,6 +352,24 @@ pharmacy_outside=outside a pharmacy rdstyadrg store
      ▼                   ▼
 [FluxGuidance]      [CLIPTextEncode]
 ```
+
+---
+
+## 🔄 Workflow Típico — JSON File Batcher (Batch de Prompts)
+
+```
+[MLV_JsonFileBatcher]
+  file_path: "prompts/syn_obj_xy_prompt_list.json"
+  key: (vazio — lista de strings)
+       │ prompt (list: 25 items)
+       ▼
+[CLIPTextEncode]      ← itera automaticamente 1 prompt por geração
+       │ conditioning
+       ▼
+[DoomFluxSampler] → [VAEDecode] → [SaveImage × 25]
+```
+
+> 💡 O ComfyUI executa automaticamente N iterações quando recebe um output `is_output_list=True`, gerando uma imagem por prompt sem necessidade de loop manual.
 
 ---
 
@@ -338,6 +414,7 @@ pharmacy_outside=outside a pharmacy rdstyadrg store
 |---|---|---|
 | **v0.24.0** | 2026-04-05 | Criação: `MLV_LoraStack_V3` (N slots, bypass global+slot, JS dinâmico) |
 | **v0.25.0** | 2026-04-06 | Adição: `MLV_StringDictLookup`, `MLV_OllamaGenerate` |
+| **v0.26.0** | 2026-05-04 | Adição: `MLV_JsonFileBatcher` (batch de prompts via JSON, `is_output_list=True`, Devil R1-R4) |
 
 ---
 

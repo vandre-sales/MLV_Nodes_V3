@@ -63,7 +63,7 @@ class MLV_OllamaGenerate(io.ComfyNode):
                 io.String.Input(
                     "system",
                     display_name="System Prompt",
-                    default="You are an AI assistant.",
+                    default="You are an AI assistant. Your expertise is focused on vision. You are able to visualize images and describe them accurately.",
                     multiline=True,
                     tooltip="System prompt — sets role and behavior of the model.",
                 ),
@@ -119,7 +119,7 @@ class MLV_OllamaGenerate(io.ComfyNode):
                 io.Float.Input(
                     "temperature",
                     display_name="Temperature",
-                    default=0.7,
+                    default=0.3,
                     min=0.0,
                     max=2.0,
                     step=0.05,
@@ -129,7 +129,7 @@ class MLV_OllamaGenerate(io.ComfyNode):
                 io.Int.Input(
                     "num_ctx",
                     display_name="Context Window",
-                    default=2048,
+                    default=768,
                     min=256,
                     max=131072,
                     step=256,
